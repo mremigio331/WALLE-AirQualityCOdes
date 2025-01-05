@@ -4,8 +4,27 @@ import serial
 import time
 import requests
 import json
+import logging
+import os
+
+# Configure logging for the air quality script
+LOG_DIR = "/var/log/wall-e"
+LOG_FILE_SAMPLER = os.path.join(LOG_DIR, "wall-e_sampler.log")
+
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(LOG_FILE_SAMPLER),
+        logging.StreamHandler()
+    ]
+)
 
 def read_pm_sensor(port):
+    """Read data from the PM sensor."""
     ser = serial.Serial(port, baudrate=9600, timeout=2)
     try:
         data = ser.read(10)
@@ -18,6 +37,7 @@ def read_pm_sensor(port):
     return None, None
 
 def send_data(device_id, pm25, pm10):
+    """Send air quality data to the server."""
     url = 'http://air.local:5000/data'
     headers = {'Content-Type': 'application/json'}
     payload = {
@@ -32,15 +52,17 @@ def send_data(device_id, pm25, pm10):
 if __name__ == "__main__":
     device_id = 'office'
     port = '/dev/ttyUSB0'
+
+    logging.info("Starting air quality monitoring...")
     while True:
         try:
             pm25, pm10 = read_pm_sensor(port)
-            print(f'pm25: {pm25}, pm10: {pm10}')
+            logging.info(f'Readings - PM2.5: {pm25}, PM10: {pm10}')
             if pm25 is not None and pm10 is not None:
                 status_code = send_data(device_id, pm25, pm10)
-                print(f"Data sent with status code: {status_code}")
+                logging.info(f"Data sent with status code: {status_code}")
         except requests.exceptions.ConnectionError:
-            print("Failed to connect to the server. The server might be down.")
+            logging.error("Failed to connect to the server. The server might be down.")
         except Exception as e:
-            print(f"An error occurred: {e}")
+            logging.error(f"An error occurred: {e}")
         time.sleep(300)
