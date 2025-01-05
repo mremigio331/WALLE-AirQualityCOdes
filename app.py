@@ -11,35 +11,51 @@ import os
 LOG_DIR = "/var/log/wall-e"
 LOG_FILE_API = os.path.join(LOG_DIR, "wall-e_api.log")
 
-# Ensure the log directory exists
-if not os.path.exists(LOG_DIR):
-    os.makedirs(LOG_DIR)
+# Configure logger
+logger = logging.getLogger("wall-e_api")
+logger.setLevel(logging.INFO)
 
-# Configure logging
+# Ensure the log directory exists
+try:
+    if not os.path.exists(LOG_DIR):
+        os.makedirs(LOG_DIR)
+        logger.info(f"Log directory created at {LOG_DIR}.")
+except Exception as e:
+    raise SystemExit(f"Critical error: Unable to create log directory: {e}")
+
+# Configure file handler for logging
 handler = TimedRotatingFileHandler(LOG_FILE_API, when="midnight", backupCount=7)
 handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
-handler.suffix = "%Y-%m-%d"  # Appends the date to the log file name
-logging.getLogger().setLevel(logging.INFO)
-logging.getLogger().addHandler(handler)
+handler.suffix = "%Y-%m-%d"
+logger.addHandler(handler)
 
 # Create Flask app
 app = Flask(__name__)
+
+# Configure open CORS
 CORS(app, resources={r"/*": {"origins": "*"}})
+logger.info("CORS is open for all origins. This is intended for local use only.")
 
 # Add Swagger
-swagger = Swagger(app)
+try:
+    swagger = Swagger(app)
+    logger.info("Swagger successfully initialized.")
+except Exception as e:
+    logger.error(f"Failed to initialize Swagger: {e}")
+    raise SystemExit("Critical error: Unable to initialize Swagger. Exiting.")
 
 # Setup DynamoDB (Local)
 try:
-    logging.info("Initializing DynamoDB Local.")
+    logger.info("Initializing DynamoDB Local.")
     dynamodb, table = setup_dynamodb(use_local=True)
 except Exception as e:
-    logging.error(f"Failed to set up DynamoDB: {e}")
-    table = None
+    logger.error(f"Failed to set up DynamoDB: {e}")
+    raise SystemExit("Critical error: Unable to initialize DynamoDB. Exiting.")
 
 # Register all endpoints
 register_endpoints(app, table)
 
 if __name__ == "__main__":
-    logging.info("Starting Flask application.")
-    app.run(host="0.0.0.0", port=5000)
+    debug_mode = os.getenv("FLASK_DEBUG", "False").lower() == "true"
+    logger.info(f"Starting Flask application with debug mode = {debug_mode}.")
+    app.run(host="0.0.0.0", port=5000, debug=debug_mode)

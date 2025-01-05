@@ -8,6 +8,7 @@ from utils import (
     batch_delete_items,
     scan_all_items,
 )
+from boto3.dynamodb.conditions import Key
 
 
 def register_endpoints(app, table):
@@ -203,31 +204,50 @@ def register_endpoints(app, table):
                 properties:
                     DeviceID:
                         type: string
+                        description: Unique identifier for the device
                     Timestamp:
                         type: string
+                        description: ISO 8601 timestamp of the data
                     PM25:
                         type: number
+                        description: PM2.5 concentration
                     PM10:
                         type: number
+                        description: PM10 concentration
         responses:
             200:
                 description: Data successfully added
             400:
-                description: Invalid input
+                description: Invalid input or default device ID used
             500:
                 description: Server error
         """
         logging.info("Called add_data endpoint.")
+
         if not table:
             logging.error("DynamoDB connection is unavailable.")
             return jsonify({"error": "DynamoDB is unavailable"}), 500
 
+        data = request.json
+
+        # Check if the DeviceID is the default
+        if data.get("DeviceID") == "default_device":
+            logging.warning("DeviceID is 'default_device'. Data not added to the database.")
+            return jsonify({
+                "error": "Invalid DeviceID",
+                "message": "The DeviceID is set to the default value 'default_device'. "
+                           "Please configure your device with a unique ID."
+            }), 400
+
         try:
-            data = request.json
+            # Ensure all required fields are present
             required_fields = ["DeviceID", "Timestamp", "PM25", "PM10"]
             if not all(field in data for field in required_fields):
                 logging.error("Missing required fields in request data.")
-                return jsonify({"error": f"Missing one or more required fields: {required_fields}"}), 400
+                return jsonify({
+                    "error": "Missing required fields",
+                    "message": f"Required fields: {', '.join(required_fields)}"
+                }), 400
 
             # Convert floats to decimals
             data = convert_floats_to_decimals(data)
@@ -238,4 +258,4 @@ def register_endpoints(app, table):
             return jsonify({"message": "Data added successfully"}), 200
         except Exception as e:
             logging.error(f"Error adding data: {e}")
-            return jsonify({"error": str(e)}), 500
+            return jsonify({"error": "Internal server error", "details": str(e)}), 500

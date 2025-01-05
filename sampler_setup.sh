@@ -3,6 +3,7 @@
 # Variables
 LOG_DIR="/var/log/wall-e"
 LOGROTATE_CONFIG="/etc/logrotate.d/wall-e_sampler"
+CONFIG_FILE="wall-e_sampler_config.json"
 USER=${USER}
 
 echo "Starting WALL-E Sampler setup..."
@@ -39,6 +40,20 @@ $LOG_DIR/wall-e_sampler.log {
 }
 EOL
 
+# Create configuration file if it doesn't already exist
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Creating default configuration file at $CONFIG_FILE..."
+    cat > $CONFIG_FILE <<EOL
+{
+    "device_id": "default_device",
+    "server_url": "http://air.local:5000"
+}
+EOL
+    echo "Default configuration file created."
+else
+    echo "Configuration file '$CONFIG_FILE' already exists. Skipping creation."
+fi
+
 # Verify setup
 echo "Verifying setup..."
 if [ -d "$LOG_DIR" ]; then
@@ -53,5 +68,12 @@ else
     echo "Failed to create logrotate configuration: $LOGROTATE_CONFIG"
 fi
 
+if [ -f "$CONFIG_FILE" ]; then
+    echo "Configuration file exists: $CONFIG_FILE"
+else
+    echo "Failed to create configuration file: $CONFIG_FILE"
+fi
+
 echo "Setup complete for WALL-E Sampler!"
 echo "Logs will be saved in $LOG_DIR/wall-e_sampler.log."
+echo "Configuration file: $CONFIG_FILE"

@@ -7,7 +7,7 @@ import json
 import logging
 import os
 
-# Configure logging for the air quality script
+# Configure logging for the sampler
 LOG_DIR = "/var/log/wall-e"
 LOG_FILE_SAMPLER = os.path.join(LOG_DIR, "wall-e_sampler.log")
 
@@ -23,6 +23,22 @@ logging.basicConfig(
     ]
 )
 
+# Load configuration
+CONFIG_FILE = "config.json"
+if not os.path.exists(CONFIG_FILE):
+    logging.error(f"Configuration file '{CONFIG_FILE}' not found. "
+                  f"Please copy 'config_template.json' to '{CONFIG_FILE}' and update it with your device details.")
+    exit(1)
+
+with open(CONFIG_FILE, "r") as f:
+    config = json.load(f)
+
+device_id = config.get("device_id", "default_device")
+server_url = config.get("server_url", "http://air.local:5000")
+
+logging.info(f"Starting WALL-E Sampler with Device ID: {device_id}, Server URL: {server_url}")
+
+# Sampler functions
 def read_pm_sensor(port):
     """Read data from the PM sensor."""
     ser = serial.Serial(port, baudrate=9600, timeout=2)
@@ -38,7 +54,6 @@ def read_pm_sensor(port):
 
 def send_data(device_id, pm25, pm10):
     """Send air quality data to the server."""
-    url = 'http://air.local:5000/data'
     headers = {'Content-Type': 'application/json'}
     payload = {
         'DeviceID': device_id,
@@ -46,14 +61,12 @@ def send_data(device_id, pm25, pm10):
         'PM25': pm25,
         'PM10': pm10
     }
-    response = requests.post(url, headers=headers, data=json.dumps(payload))
+    response = requests.post(server_url + "/data", headers=headers, data=json.dumps(payload))
     return response.status_code
 
 if __name__ == "__main__":
-    device_id = 'office'
     port = '/dev/ttyUSB0'
 
-    logging.info("Starting air quality monitoring...")
     while True:
         try:
             pm25, pm10 = read_pm_sensor(port)
