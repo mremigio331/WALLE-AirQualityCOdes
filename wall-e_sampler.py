@@ -24,10 +24,9 @@ logging.basicConfig(
 )
 
 # Load configuration
-CONFIG_FILE = "config.json"
+CONFIG_FILE = "wall-e_sampler_config.json"
 if not os.path.exists(CONFIG_FILE):
-    logging.error(f"Configuration file '{CONFIG_FILE}' not found. "
-                  f"Please copy 'config_template.json' to '{CONFIG_FILE}' and update it with your device details.")
+    logging.error(f"Configuration file '{CONFIG_FILE}' not found.")
     exit(1)
 
 with open(CONFIG_FILE, "r") as f:
