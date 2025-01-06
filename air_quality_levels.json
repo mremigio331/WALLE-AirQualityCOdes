@@ -31,7 +31,7 @@
             "code": 4
         },
         {
-            "range": "250.5 to 500.4",
+            "range": "250.5 to 99999999",
             "category": "Hazardous",
             "message": "Health warnings of emergency conditions. The entire population is more likely to be affected.",
             "code": 5
@@ -69,7 +69,7 @@
             "code": 4
         },
         {
-            "range": "425 to 604",
+            "range": "425 to 99999999",
             "category": "Hazardous",
             "message": "Health warnings of emergency conditions. The entire population is more likely to be affected.",
             "code": 5

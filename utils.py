@@ -1,7 +1,18 @@
 from decimal import Decimal
 from boto3.dynamodb.conditions import Key
 import logging
+import json
 
+def get_air_quality_levels():
+    with open('air_quality_levels.json', 'r') as json_file:
+        return json.load(json_file)
+    
+def get_air_quality_info(value, pm_type_levels):
+    for level in pm_type_levels:
+        min_value, max_value = map(float, level["range"].split(" to "))
+        if min_value <= value <= max_value:
+            return level["message"], level["code"]
+    return "Unknown", 0
 
 def normalize_item(item):
     """Normalize DynamoDB item for JSON response."""
@@ -51,7 +62,28 @@ def get_latest_info(table, device_id):
             Limit=1
         )
         if "Items" in response and response["Items"]:
-            return response["Items"][0]
+            item = response['Items'][0]
+            pm25_value = item.get('PM25')
+            pm10_value = item.get('PM10')
+
+            if pm25_value is not None:
+                message, code = get_air_quality_info(pm25_value, get_air_quality_levels()["PM2.5"])
+                item['message'] = message
+                item['code'] = int(code)
+                logging.info(f"Message: {message}. Code: {code}")
+
+            elif pm10_value is not None:
+                message, code = get_air_quality_info(pm10_value, get_air_quality_levels()["PM10"])
+                item['message'] = message
+                item['code'] = int(code)
+                logging.info(f"Message: {message}. Code: {code}")
+
+            else:
+                item['message'] = 'Unknown'
+                item['code'] = 0
+                logging.info('No message or code identified')
+
+            return item
         else:
             logging.info(f"No entries found for device {device_id}.")
             return None
