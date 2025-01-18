@@ -17,6 +17,20 @@ sudo apt upgrade -y
 echo "Installing required tools and dependencies..."
 sudo apt install -y python3-serial python3-requests python3-pip screen
 
+# Enable UART on Raspberry Pi
+echo "Enabling UART for GPIO serial communication..."
+sudo raspi-config nonint do_serial 1  # Enable UART, disable console over serial
+
+# Ensure UART is enabled in /boot/config.txt
+echo "Configuring /boot/config.txt for UART..."
+if ! grep -q "^enable_uart=1" /boot/config.txt; then
+    echo "enable_uart=1" | sudo tee -a /boot/config.txt
+fi
+
+# Add user to dialout group for serial access
+echo "Adding $USER to the 'dialout' group for serial port access..."
+sudo usermod -a -G dialout $USER
+
 # Create the log directory
 echo "Creating log directory at $LOG_DIR..."
 sudo mkdir -p $LOG_DIR
@@ -74,6 +88,8 @@ else
     echo "Failed to create configuration file: $CONFIG_FILE"
 fi
 
+echo "UART setup complete. Please reboot the Raspberry Pi to apply changes."
+echo "Run: sudo reboot"
 echo "Setup complete for WALL-E Sampler!"
 echo "Logs will be saved in $LOG_DIR/wall-e_sampler.log."
 echo "Configuration file: $CONFIG_FILE"

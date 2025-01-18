@@ -6,6 +6,7 @@ import requests
 import json
 import logging
 import os
+import argparse
 
 # Configure logging for the sampler
 LOG_DIR = "/var/log/wall-e"
@@ -51,28 +52,39 @@ def read_pm_sensor(port):
         ser.close()
     return None, None
 
-def send_data(device_id, pm25, pm10):
-    """Send air quality data to the server."""
-    headers = {'Content-Type': 'application/json'}
+def send_data(device_id, pm25, pm10, debug):
+    """Send air quality data to the server or print in debug mode."""
     payload = {
         'DeviceID': device_id,
         'Timestamp': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
         'PM25': pm25,
         'PM10': pm10
     }
-    response = requests.post(server_url + "/data", headers=headers, data=json.dumps(payload))
-    return response.status_code
+    if debug:
+        logging.info(f"[DEBUG] Payload: {json.dumps(payload, indent=2)}")
+        return 200  # Mock successful status code
+    else:
+        headers = {'Content-Type': 'application/json'}
+        response = requests.post(server_url + "/data", headers=headers, data=json.dumps(payload))
+        return response.status_code
 
 if __name__ == "__main__":
-    port = '/dev/ttyUSB0'
+    parser = argparse.ArgumentParser(description="WALL-E Air Sampler")
+    parser.add_argument('--pins', action='store_true', help="Use GPIO pins instead of USB")
+    parser.add_argument('--debug', action='store_true', help="Enable debug mode to print payload instead of sending data")
+    args = parser.parse_args()
+
+    # Select the appropriate port
+    port = '/dev/serial0' if args.pins else '/dev/ttyUSB0'
+    logging.info(f"Using port: {port}")
 
     while True:
         try:
             pm25, pm10 = read_pm_sensor(port)
             logging.info(f'Readings - PM2.5: {pm25}, PM10: {pm10}')
             if pm25 is not None and pm10 is not None:
-                status_code = send_data(device_id, pm25, pm10)
-                logging.info(f"Data sent with status code: {status_code}")
+                status_code = send_data(device_id, pm25, pm10, args.debug)
+                logging.info(f"Data {'printed (debug mode)' if args.debug else 'sent'} with status code: {status_code}")
         except requests.exceptions.ConnectionError:
             logging.error("Failed to connect to the server. The server might be down.")
         except Exception as e:
